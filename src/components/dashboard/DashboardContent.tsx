@@ -303,13 +303,7 @@ export function DashboardContent({
         </Box>
       </Box>
 
-      {/* Dashboard Title */}
-      <Box sx={{ px: 4, pt: 4, pb: 2 }}>
-        <Typography variant="h4" fontWeight={700} color="#18181B">Dashboard</Typography>
-      </Box>
-
-      {/* Stat Cards */}
-      <Box sx={{ display: 'flex', gap: 3, px: 4, mb: 3, flexWrap: 'wrap', flexDirection: { xs: 'column', md: 'row' } }}>
+      <Box sx={{ display: 'flex', gap: 3, px: 4, mb: 3, flexWrap: 'wrap', pt: 4, justifyContent:'space-between', flexDirection: { xs: 'column', md: 'row' } }}>
         {dynamicStats.map((stat, idx) => (
           <StatCard
             key={stat.label}
@@ -318,7 +312,7 @@ export function DashboardContent({
             label={stat.label}
             value={stat.value}
             sublabel={stat.sublabel}
-            sx={{ flex: 1, minWidth: 260 }}
+            sx={{ borderRadius: 5, width: 300, maxWidth: 400}}
           />
         ))}
       </Box>

@@ -25,11 +25,13 @@ interface StatCardProps extends MuiCardProps {
 export const StatCard = ({ icon, iconBg = "#e9f3ff", label, value, sublabel, color, ...props }: StatCardProps) => (
   <Card
     sx={{
+
       display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      borderRadius: 3,
-      boxShadow: "0 0 0 1px #ececec, 0 2px 8px 0 rgba(16,30,54,0.04)",
+      height: 130,
+      padding: 16,
+      border: "1px solid #EBEBEA",
+      boxShadow: "0px 0px 1px #171a1f12, 0px 0px 2px #171a1f1F",
+      background: "#FFFFFFFF", 
       ...props.sx,
     }}
     {...props}
@@ -38,9 +40,30 @@ export const StatCard = ({ icon, iconBg = "#e9f3ff", label, value, sublabel, col
       <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 500, mb: 1 }}>
         {label}
       </Typography>
-      <Typography variant="h3" sx={{ fontWeight: 700, mb: 2, color: "#18181B" }}>{value}</Typography>
+      <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: "#18181B" }}>{value}</Typography>
+        <Box
+          sx={{
+            bgcolor: iconBg,
+            borderRadius: 2,
+            width: 35,
+            height: 35,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ml: 2,
+          }}
+        >
+          {icon}
+        </Box>
+      </Box>
       {sublabel && (
-        <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           {sublabel.percent && (
             <>
               {sublabel.up ? (
@@ -58,20 +81,6 @@ export const StatCard = ({ icon, iconBg = "#e9f3ff", label, value, sublabel, col
           </Typography>
         </Box>
       )}
-    </Box>
-    <Box
-      sx={{
-        bgcolor: iconBg,
-        borderRadius: 2,
-        width: 56,
-        height: 56,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        ml: 2,
-      }}
-    >
-      {icon}
     </Box>
   </Card>
 ); 
