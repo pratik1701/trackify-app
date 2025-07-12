@@ -12,6 +12,11 @@ import SearchIcon from "@mui/icons-material/Search";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { StatCard } from "../common/StatCard";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -22,7 +27,6 @@ import Tab from "@mui/material/Tab";
 import Button from "@mui/material/Button";
 import AddIcon from "@mui/icons-material/Add";
 import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -43,6 +47,7 @@ import TextField from "@mui/material/TextField";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { useCreateSubscription, useUpdateSubscription, useDeleteSubscription, type Subscription, type CreateSubscriptionData } from "@/hooks/useSubscriptions";
+import { signOut } from "next-auth/react";
 
 const stats = [
   {
@@ -132,6 +137,9 @@ export function DashboardContent({
     nextDueDate: "",
     notes: ""
   });
+  
+  // Profile menu state
+  const [profileMenuAnchor, setProfileMenuAnchor] = React.useState<null | HTMLElement>(null);
 
   // Handlers for modal, delete, and snackbar
   const handleAdd = () => {
@@ -211,6 +219,32 @@ export function DashboardContent({
   const handleDeleteCancel = () => setDeleteRow(null);
   const handleSnackbarClose = () => setSnackbar(s => ({ ...s, open: false }));
 
+  // Profile menu handlers
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setProfileMenuAnchor(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setProfileMenuAnchor(null);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ 
+        callbackUrl: '/' // Redirect to home page after logout
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Show error message to user
+      setSnackbar({ 
+        open: true, 
+        message: "Failed to logout. Please try again.", 
+        severity: "error" 
+      });
+    }
+    handleProfileMenuClose();
+  };
+
   // Calculate stats from props
   const upcomingBillsCount = subscriptions.filter(sub => {
     const dueDate = new Date(sub.nextDueDate);
@@ -278,26 +312,24 @@ export function DashboardContent({
           </Box>
           <Typography variant="h6" fontWeight={700} color="#18181B">Trackify</Typography>
         </Box>
-        {/* Search Bar */}
-        <Paper
-          component="form"
-          sx={{ display: 'flex', alignItems: 'center', width: 340, boxShadow: 'none', border: '1px solid #ececec', borderRadius: 2, px: 1 }}
-        >
-          <InputBase
-            sx={{ ml: 1, flex: 1, fontSize: 15 }}
-            placeholder="Search subscriptions..."
-            inputProps={{ 'aria-label': 'search subscriptions' }}
-          />
-          <IconButton type="submit" sx={{ p: '6px' }} aria-label="search">
-            <SearchIcon />
-          </IconButton>
-        </Paper>
         {/* Icons and Avatar */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton><HelpOutlineIcon /></IconButton>
-          <IconButton><SettingsOutlinedIcon /></IconButton>
           <IconButton><NotificationsNoneIcon /></IconButton>
-          <Avatar sx={{ width: 36, height: 36, bgcolor: '#e9f3ff', color: '#2196f3', fontWeight: 700, fontSize: 18 }}>
+          <Avatar 
+            sx={{ 
+              width: 36, 
+              height: 36, 
+              bgcolor: '#e9f3ff', 
+              color: '#2196f3', 
+              fontWeight: 700, 
+              fontSize: 18,
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#d1e7ff',
+              }
+            }}
+            onClick={handleProfileMenuOpen}
+          >
             {userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
           </Avatar>
         </Box>
@@ -536,6 +568,48 @@ export function DashboardContent({
           {snackbar.message}
         </MuiAlert>
       </Snackbar>
+
+      {/* Profile Menu */}
+      <Menu
+        anchorEl={profileMenuAnchor}
+        open={Boolean(profileMenuAnchor)}
+        onClose={handleProfileMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            minWidth: 180,
+            boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.15)',
+            borderRadius: 2,
+          }
+        }}
+      >
+        <MenuItem onClick={handleProfileMenuClose}>
+          <ListItemIcon>
+            <SettingsOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Settings</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleProfileMenuClose}>
+          <ListItemIcon>
+            <HelpOutlineIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Help</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Logout</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {/* Footer */}
       <Box sx={{ mt: 6, py: 3, textAlign: 'center', color: 'text.secondary', fontSize: 15, borderTop: '1px solid #ececec', background: '#fff' }}>
