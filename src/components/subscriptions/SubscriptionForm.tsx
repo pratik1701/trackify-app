@@ -3,7 +3,14 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useEffect } from "react";
+import {
+  Grid,
+  Typography,
+  Box,
+  InputAdornment,
+} from '@mui/material';
 import { subscriptionFormSchema, subscriptionSubmitSchema, type SubscriptionFormData, type SubscriptionSubmitData, categories, billingCycles, frequencies, type Subscription } from "@/types/subscription";
+import { Modal, Button, Input, Select } from '../common';
 
 interface SubscriptionFormProps {
   onSubmit: (data: SubscriptionSubmitData) => Promise<void>;
@@ -74,178 +81,122 @@ export function SubscriptionForm({ onSubmit, isLoading = false, isOpen, onClose,
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">
-              {mode === "edit" ? "Edit Subscription" : "Add New Subscription"}
-            </h3>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+    <Modal
+      open={isOpen}
+      onClose={handleClose}
+      title={mode === "edit" ? "Edit Subscription" : "Add New Subscription"}
+      maxWidth="md"
+      actions={
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="outlined" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            loading={isLoading}
+            onClick={handleSubmit(handleFormSubmit)}
+          >
+            {isLoading ? (mode === "edit" ? "Saving..." : "Adding...") : (mode === "edit" ? "Save Changes" : "Add Subscription")}
+          </Button>
+        </Box>
+      }
+    >
+      <Box component="form" onSubmit={handleSubmit(handleFormSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <Input
+              {...register("name")}
+              label="Subscription Name *"
+              placeholder="e.g., Netflix, Spotify Pro"
+              error={!!errors.name}
+              helperText={errors.name?.message}
+              fullWidth
+            />
+          </Box>
 
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Subscription Name *
-                </label>
-                <input
-                  {...register("name")}
-                  type="text"
-                  id="name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                  placeholder="e.g., Netflix, Spotify Pro"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-                )}
-              </div>
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <Input
+              {...register("amount")}
+              label="Amount *"
+              type="number"
+              placeholder="0.00"
+              error={!!errors.amount}
+              helperText={errors.amount?.message}
+              fullWidth
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+              inputProps={{
+                step: "0.01",
+                min: "0",
+              }}
+            />
+          </Box>
+        </Box>
 
-              <div>
-                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500">$</span>
-                  <input
-                    {...register("amount")}
-                    type="number"
-                    id="amount"
-                    step="0.01"
-                    min="0"
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                    placeholder="0.00"
-                  />
-                </div>
-                {errors.amount && (
-                  <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
-                )}
-              </div>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <Select
+              {...register("category")}
+              label="Category *"
+              placeholder="Select a category"
+              options={categories.map(category => ({ value: category, label: category }))}
+              error={!!errors.category}
+              helperText={errors.category?.message}
+            />
+          </Box>
 
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-                  {...register("category")}
-                  id="category"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-                {errors.category && (
-                  <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
-                )}
-              </div>
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <Select
+              {...register("billingCycle")}
+              label="Billing Cycle *"
+              options={billingCycles.map(cycle => ({ value: cycle.value, label: cycle.label }))}
+              error={!!errors.billingCycle}
+              helperText={errors.billingCycle?.message}
+            />
+          </Box>
+        </Box>
 
-              <div>
-                <label htmlFor="billingCycle" className="block text-sm font-medium text-gray-700 mb-2">
-                  Billing Cycle *
-                </label>
-                <select
-                  {...register("billingCycle")}
-                  id="billingCycle"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                >
-                  {billingCycles.map((cycle) => (
-                    <option key={cycle.value} value={cycle.value}>
-                      {cycle.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.billingCycle && (
-                  <p className="mt-1 text-sm text-red-600">{errors.billingCycle.message}</p>
-                )}
-              </div>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <Select
+              {...register("frequency")}
+              label="Frequency *"
+              options={frequencies.map(freq => ({ value: freq.value, label: freq.label }))}
+              error={!!errors.frequency}
+              helperText={errors.frequency?.message}
+            />
+          </Box>
 
-              <div>
-                <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-2">
-                  Frequency *
-                </label>
-                <select
-                  {...register("frequency")}
-                  id="frequency"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                >
-                  {frequencies.map((freq) => (
-                    <option key={freq.value} value={freq.value}>
-                      {freq.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.frequency && (
-                  <p className="mt-1 text-sm text-red-600">{errors.frequency.message}</p>
-                )}
-              </div>
+          <Box sx={{ flex: 1, minWidth: 250 }}>
+            <Input
+              {...register("nextDueDate")}
+              label="Next Due Date *"
+              type="date"
+              error={!!errors.nextDueDate}
+              helperText={errors.nextDueDate?.message}
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Box>
+        </Box>
 
-              <div className="md:col-span-2">
-                <label htmlFor="nextDueDate" className="block text-sm font-medium text-gray-700 mb-2">
-                  Next Due Date *
-                </label>
-                <input
-                  {...register("nextDueDate")}
-                  type="date"
-                  id="nextDueDate"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                />
-                {errors.nextDueDate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.nextDueDate.message}</p>
-                )}
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  {...register("notes")}
-                  id="notes"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
-                  placeholder="Optional notes about this subscription..."
-                />
-                {errors.notes && (
-                  <p className="mt-1 text-sm text-red-600">{errors.notes.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {isLoading ? (mode === "edit" ? "Saving..." : "Adding...") : (mode === "edit" ? "Save Changes" : "Add Subscription")}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+        <Box>
+          <Input
+            {...register("notes")}
+            label="Notes"
+            placeholder="Optional notes about this subscription..."
+            error={!!errors.notes}
+            helperText={errors.notes?.message}
+            fullWidth
+            multiline
+            rows={3}
+          />
+        </Box>
+      </Box>
+    </Modal>
   );
 } 

@@ -9,15 +9,14 @@ import {
   Checkbox, 
   Typography, 
   Box, 
-  Button,
   Divider,
   IconButton,
-  TextField,
   Accordion,
   AccordionSummary,
   AccordionDetails,
   FormControlLabel
 } from "@mui/material";
+import { Button, Input } from '../common';
 import { 
   Close as CloseIcon, 
   FilterList as FilterIcon,
@@ -338,23 +337,21 @@ export function FilterSidesheet({
               </AccordionSummary>
               <AccordionDetails>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
+                  <Input
                     label="Min Amount"
                     type="number"
                     value={amountRange.min}
-                    onChange={(e) => onAmountRangeChange({ ...amountRange, min: e.target.value })}
-                    size="small"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onAmountRangeChange({ ...amountRange, min: e.target.value })}
                     fullWidth
                     InputProps={{
                       startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography>,
                     }}
                   />
-                  <TextField
+                  <Input
                     label="Max Amount"
                     type="number"
                     value={amountRange.max}
-                    onChange={(e) => onAmountRangeChange({ ...amountRange, max: e.target.value })}
-                    size="small"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onAmountRangeChange({ ...amountRange, max: e.target.value })}
                     fullWidth
                     InputProps={{
                       startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography>,
@@ -373,7 +370,7 @@ export function FilterSidesheet({
               }
             </Typography>
             <Button
-              variant="contained"
+              variant="primary"
               fullWidth
               onClick={handleApplyFilters}
             >

@@ -1,13 +1,102 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Subscription } from "@/types/subscription";
-import { SubscriptionList } from "@/components/subscriptions/SubscriptionList";
-import { SubscriptionFormWrapper } from "@/components/subscriptions/SubscriptionFormWrapper";
-import { MonthlySpendChart } from "@/components/charts/MonthlySpendChart";
-import { FilterSidesheet } from "@/components/filters/FilterSidesheet";
-import { UpcomingCalendar } from "@/components/calendar/UpcomingCalendar";
-import { ProfileMenu } from "@/components/auth/ProfileMenu";
+import React, { useState } from "react";
+import Box from "@mui/material/Box";
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
+import InputBase from "@mui/material/InputBase";
+import Paper from "@mui/material/Paper";
+import Avatar from "@mui/material/Avatar";
+import IconButton from "@mui/material/IconButton";
+import SearchIcon from "@mui/icons-material/Search";
+import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { StatCard } from "../common/StatCard";
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import SubscriptionsIcon from "@mui/icons-material/Subscriptions";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Button from "@mui/material/Button";
+import AddIcon from "@mui/icons-material/Add";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Link from "@mui/material/Link";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { StatusChip } from "../common/StatusChip";
+import { ActionButton } from "../common/ActionButton";
+import Tooltip from "@mui/material/Tooltip";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import TextField from "@mui/material/TextField";
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
+import { useCreateSubscription, useUpdateSubscription, useDeleteSubscription, type Subscription, type CreateSubscriptionData } from "@/hooks/useSubscriptions";
+
+const stats = [
+  {
+    icon: <AttachMoneyIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+    iconBg: '#e9f3ff',
+    label: "Total Monthly Spend",
+    value: "$396.44",
+    sublabel: { percent: "+3.2%", color: "#22c55e", text: "Estimated recurring spend", up: true },
+  },
+  {
+    icon: <CalendarMonthIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+    iconBg: '#e9f3ff',
+    label: "Upcoming Bills (7 Days)",
+    value: 0,
+    sublabel: { text: "Bills due in the next week", color: '#64748b' },
+  },
+  {
+    icon: <SubscriptionsIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+    iconBg: '#e9f3ff',
+    label: "Active Subscriptions",
+    value: 11,
+    sublabel: { percent: "-1.5%", color: "#ef4444", text: "Currently active services", up: false },
+  },
+  {
+    icon: <ReceiptLongIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+    iconBg: '#e9f3ff',
+    label: "Avg. Bill Amount",
+    value: "$36.04",
+    sublabel: { percent: "+0.8%", color: "#22c55e", text: "Average cost per subscription", up: true },
+  },
+];
+
+// Helper function to get status based on due date
+const getSubscriptionStatus = (dueDate: string): 'active' | 'dueSoon' | 'overdue' => {
+  const today = new Date();
+  const due = new Date(dueDate);
+  const diffTime = due.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return 'overdue';
+  if (diffDays <= 7) return 'dueSoon';
+  return 'active';
+};
+
+// Helper function to format billing cycle for display
+const formatBillingCycle = (cycle: string): string => {
+  switch (cycle) {
+    case 'monthly': return 'Monthly';
+    case 'yearly': return 'Yearly';
+    case 'twoYear': return '2 Year';
+    case 'threeYear': return '3 Year';
+    default: return cycle;
+  }
+};
 
 interface DashboardContentProps {
   subscriptions: Subscription[];
@@ -18,332 +107,446 @@ interface DashboardContentProps {
 }
 
 export function DashboardContent({ 
-  subscriptions: initialSubscriptions, 
+  subscriptions, 
   totalMonthlySpend, 
   totalYearlySpend, 
-  totalOneTimeExpenses,
+  totalOneTimeExpenses, 
   userName 
 }: DashboardContentProps) {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(initialSubscriptions);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedBillingCycles, setSelectedBillingCycles] = useState<string[]>([]);
-  const [selectedFrequencies, setSelectedFrequencies] = useState<string[]>([]);
-  const [amountRange, setAmountRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
-  const [activeTab, setActiveTab] = useState<"list" | "chart" | "calendar" | "reports">("list");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
-  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [isLoading, setIsLoading] = useState(false);
+  // React Query mutations
+  const createSubscriptionMutation = useCreateSubscription();
+  const updateSubscriptionMutation = useUpdateSubscription();
+  const deleteSubscriptionMutation = useDeleteSubscription();
 
-  // Fetch filtered subscriptions from API
-  const fetchFilteredSubscriptions = async () => {
-    setIsLoading(true);
+  // Modal/dialog/snackbar state
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [editRow, setEditRow] = React.useState<Subscription | null>(null);
+  const [deleteRow, setDeleteRow] = React.useState<Subscription | null>(null);
+  const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
+  const [form, setForm] = React.useState<CreateSubscriptionData>({
+    name: "",
+    amount: 0,
+    category: "",
+    billingCycle: "monthly",
+    frequency: "recurring",
+    nextDueDate: "",
+    notes: ""
+  });
+
+  // Handlers for modal, delete, and snackbar
+  const handleAdd = () => {
+    setEditRow(null);
+    setForm({
+      name: "",
+      amount: 0,
+      category: "",
+      billingCycle: "monthly",
+      frequency: "recurring",
+      nextDueDate: "",
+      notes: ""
+    });
+    setModalOpen(true);
+  };
+
+  const handleEdit = (row: Subscription) => {
+    setEditRow(row);
+    setForm({
+      name: row.name,
+      amount: row.amount,
+      category: row.category,
+      billingCycle: row.billingCycle,
+      frequency: row.frequency,
+      nextDueDate: new Date(row.nextDueDate).toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+      notes: row.notes || ""
+    });
+    setModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setModalOpen(false);
+    setEditRow(null);
+  };
+
+  const handleModalSave = async () => {
     try {
-      const params = new URLSearchParams();
-      
-      if (selectedCategories.length > 0) {
-        params.append('categories', selectedCategories.join(','));
-      }
-      if (selectedBillingCycles.length > 0) {
-        params.append('billingCycles', selectedBillingCycles.join(','));
-      }
-      if (selectedFrequencies.length > 0) {
-        params.append('frequencies', selectedFrequencies.join(','));
-      }
-      if (amountRange.min) {
-        params.append('minAmount', amountRange.min);
-      }
-      if (amountRange.max) {
-        params.append('maxAmount', amountRange.max);
-      }
-
-      const response = await fetch(`/api/subscriptions?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSubscriptions(data);
+      if (editRow) {
+        await updateSubscriptionMutation.mutateAsync({
+          ...form,
+          id: editRow.id
+        });
+        setSnackbar({ open: true, message: "Subscription updated!", severity: "success" });
       } else {
-        console.error('Failed to fetch filtered subscriptions');
+        await createSubscriptionMutation.mutateAsync(form);
+        setSnackbar({ open: true, message: "Subscription added!", severity: "success" });
       }
+      setModalOpen(false);
+      setEditRow(null);
     } catch (error) {
-      console.error('Error fetching filtered subscriptions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Apply filters when the apply button is clicked
-  const handleApplyFilters = () => {
-    fetchFilteredSubscriptions();
-  };
-
-  const handleOpenModal = () => {
-    setModalMode("add");
-    setEditingSubscription(null);
-    setIsModalOpen(true);
-  };
-  
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingSubscription(null);
-  };
-
-  const handleEditSubscription = (subscription: Subscription) => {
-    setModalMode("edit");
-    setEditingSubscription(subscription);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteSubscription = async (subscriptionId: string) => {
-    try {
-      const response = await fetch(`/api/subscriptions/${subscriptionId}`, {
-        method: "DELETE",
+      setSnackbar({ 
+        open: true, 
+        message: error instanceof Error ? error.message : "An error occurred", 
+        severity: "error" 
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to delete subscription");
-      }
-
-      // Update local state instead of reloading the page
-      setSubscriptions(prev => prev.filter(sub => sub.id !== subscriptionId));
-      
-      // Show success message (you can implement a proper toast notification here)
-      console.log("Subscription deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting subscription:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete subscription. Please try again.";
-      console.error(errorMessage);
     }
   };
 
+  const handleDelete = (row: Subscription) => setDeleteRow(row);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteRow) return;
+    
+    try {
+      await deleteSubscriptionMutation.mutateAsync(deleteRow.id);
+      setSnackbar({ open: true, message: "Subscription deleted!", severity: "success" });
+      setDeleteRow(null);
+    } catch (error) {
+      setSnackbar({ 
+        open: true, 
+        message: error instanceof Error ? error.message : "An error occurred", 
+        severity: "error" 
+      });
+    }
+  };
+
+  const handleDeleteCancel = () => setDeleteRow(null);
+  const handleSnackbarClose = () => setSnackbar(s => ({ ...s, open: false }));
+
+  // Calculate stats from props
+  const upcomingBillsCount = subscriptions.filter(sub => {
+    const dueDate = new Date(sub.nextDueDate);
+    const today = new Date();
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).length;
+
+  const avgBillAmount = subscriptions.length > 0 
+    ? subscriptions.reduce((sum, sub) => sum + sub.amount, 0) / subscriptions.length 
+    : 0;
+
+  const dynamicStats = [
+    {
+      icon: <AttachMoneyIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+      iconBg: '#e9f3ff',
+      label: "Total Monthly Spend",
+      value: `$${totalMonthlySpend.toFixed(2)}`,
+      sublabel: { text: "Estimated recurring spend", color: '#64748b' },
+    },
+    {
+      icon: <CalendarMonthIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+      iconBg: '#e9f3ff',
+      label: "Upcoming Bills (7 Days)",
+      value: upcomingBillsCount,
+      sublabel: { text: "Bills due in the next week", color: '#64748b' },
+    },
+    {
+      icon: <SubscriptionsIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+      iconBg: '#e9f3ff',
+      label: "Active Subscriptions",
+      value: subscriptions.length,
+      sublabel: { text: "Currently active services", color: '#64748b' },
+    },
+    {
+      icon: <ReceiptLongIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
+      iconBg: '#e9f3ff',
+      label: "Avg. Bill Amount",
+      value: `$${avgBillAmount.toFixed(2)}`,
+      sublabel: { text: "Average cost per subscription", color: '#64748b' },
+    },
+  ];
+
+  // Header
   return (
-    <div className="min-h-screen bg-gray-50">
+    <Box sx={{ background: '#fff', minHeight: '100vh' }}>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Trackify</h1>
-              <span className="text-sm text-gray-500">Smart Finance & Subscription Tracker</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <ProfileMenu userName={userName} />
-            </div>
-          </div>
-        </div>
-      </header>
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        px: 4,
+        py: 2.5,
+        borderBottom: '1px solid #ececec',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: '#fff',
+      }}>
+        {/* Logo */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ width: 32, height: 32, bgcolor: '#e9f3ff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1 }}>
+            <AttachMoneyIcon sx={{ color: '#2196f3', fontSize: 22 }} />
+          </Box>
+          <Typography variant="h6" fontWeight={700} color="#18181B">Trackify</Typography>
+        </Box>
+        {/* Search Bar */}
+        <Paper
+          component="form"
+          sx={{ display: 'flex', alignItems: 'center', width: 340, boxShadow: 'none', border: '1px solid #ececec', borderRadius: 2, px: 1 }}
+        >
+          <InputBase
+            sx={{ ml: 1, flex: 1, fontSize: 15 }}
+            placeholder="Search subscriptions..."
+            inputProps={{ 'aria-label': 'search subscriptions' }}
+          />
+          <IconButton type="submit" sx={{ p: '6px' }} aria-label="search">
+            <SearchIcon />
+          </IconButton>
+        </Paper>
+        {/* Icons and Avatar */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <IconButton><HelpOutlineIcon /></IconButton>
+          <IconButton><SettingsOutlinedIcon /></IconButton>
+          <IconButton><NotificationsNoneIcon /></IconButton>
+          <Avatar sx={{ width: 36, height: 36, bgcolor: '#e9f3ff', color: '#2196f3', fontWeight: 700, fontSize: 18 }}>
+            {userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+          </Avatar>
+        </Box>
+      </Box>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards - Sticky */}
-        <div className="sticky top-16 z-10 bg-gray-50 pt-2 pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Monthly Spend</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${totalMonthlySpend.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Dashboard Title */}
+      <Box sx={{ px: 4, pt: 4, pb: 2 }}>
+        <Typography variant="h4" fontWeight={700} color="#18181B">Dashboard</Typography>
+      </Box>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Yearly Spend</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${totalYearlySpend.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Stat Cards */}
+      <Box sx={{ display: 'flex', gap: 3, px: 4, mb: 3, flexWrap: 'wrap', flexDirection: { xs: 'column', md: 'row' } }}>
+        {dynamicStats.map((stat, idx) => (
+          <StatCard
+            key={stat.label}
+            icon={stat.icon}
+            iconBg={stat.iconBg}
+            label={stat.label}
+            value={stat.value}
+            sublabel={stat.sublabel}
+            sx={{ flex: 1, minWidth: 260 }}
+          />
+        ))}
+      </Box>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Subscriptions</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {subscriptions.length}
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Tabs and Add Button Row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 4, mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 0 } }}>
+        <Tabs value={0} sx={{ minHeight: 0 }}>
+          <Tab label="Subscription List" sx={{ textTransform: 'none', fontWeight: 500, minHeight: 0 }} />
+          <Tab label="Subscription Overview" sx={{ textTransform: 'none', fontWeight: 500, minHeight: 0 }} />
+          <Tab label="Subscription Calendar" sx={{ textTransform: 'none', fontWeight: 500, minHeight: 0 }} />
+        </Tabs>
+        <Button variant="contained" startIcon={<AddIcon />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }} onClick={handleAdd}>
+          Add Subscription
+        </Button>
+      </Box>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599 1" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">One-Time Expenses</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  ${totalOneTimeExpenses.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
+      {/* Table Controls Row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 4, mb: 1, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 0 } }}>
+        {/* Search Bar */}
+        <Paper
+          component="form"
+          sx={{ display: 'flex', alignItems: 'center', width: 260, boxShadow: 'none', border: '1px solid #ececec', borderRadius: 2, px: 1 }}
+        >
+          <InputBase
+            sx={{ ml: 1, flex: 1, fontSize: 15 }}
+            placeholder="Search subscriptions..."
+            inputProps={{ 'aria-label': 'search subscriptions' }}
+          />
+          <IconButton type="submit" sx={{ p: '6px' }} aria-label="search">
+            <SearchIcon />
+          </IconButton>
+        </Paper>
+        {/* Type and Cycle Dropdowns */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Select
+            value={""}
+            displayEmpty
+            size="small"
+            sx={{ minWidth: 100, borderRadius: 2, background: '#fff', fontWeight: 500 }}
+          >
+            <MenuItem value="">Type</MenuItem>
+            <MenuItem value="recurring">Recurring</MenuItem>
+            <MenuItem value="oneTime">One Time</MenuItem>
+          </Select>
+          <Select
+            value={""}
+            displayEmpty
+            size="small"
+            sx={{ minWidth: 100, borderRadius: 2, background: '#fff', fontWeight: 500 }}
+          >
+            <MenuItem value="">Cycle</MenuItem>
+            <MenuItem value="monthly">Monthly</MenuItem>
+            <MenuItem value="yearly">Yearly</MenuItem>
+          </Select>
+        </Box>
+      </Box>
 
-                {/* Tab Navigation and Action Buttons - Sticky */}
-        <div className="sticky top-48 z-10 bg-gray-50 pt-2 pb-4 flex justify-between items-center">
-          <nav className="flex space-x-8 overflow-x-auto scrollbar-hide pb-2">
-            <button
-              onClick={() => setActiveTab("list")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                activeTab === "list"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Subscriptions
-            </button>
-            <button
-              onClick={() => setActiveTab("chart")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                activeTab === "chart"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab("calendar")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                activeTab === "calendar"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Calendar
-            </button>
-            <button
-              onClick={() => setActiveTab("reports")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm cursor-pointer whitespace-nowrap flex-shrink-0 ${
-                activeTab === "reports"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Reports
-            </button>
-          </nav>
+      {/* Table */}
+      <Box sx={{ px: 4, pb: 2 }}>
+        <Paper elevation={1} sx={{ borderRadius: 3 }}>
+          {subscriptions.length === 0 ? (
+            <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
+              <Box sx={{ mb: 2 }}>
+                {/* Placeholder illustration (could use an SVG or MUI icon) */}
+                <svg width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="80" height="80" rx="16" fill="#f6f7fa" />
+                  <path d="M24 40h32M24 48h32M24 32h32" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </Box>
+              <Typography variant="h6" sx={{ mb: 1 }}>No subscriptions found</Typography>
+              <Typography variant="body2">Get started by adding your first subscription.</Typography>
+            </Box>
+          ) : (
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell>Cycle</TableCell>
+                      <TableCell>Next Due Date</TableCell>
+                      <TableCell>Category</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {subscriptions.map((row) => {
+                      const status = getSubscriptionStatus(row.nextDueDate);
+                      return (
+                        <TableRow key={row.id} sx={{ transition: 'background 0.2s', '&:hover': { background: '#f6f7fa' } }}>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>${row.amount.toFixed(2)}</TableCell>
+                          <TableCell>{formatBillingCycle(row.billingCycle)}</TableCell>
+                          <TableCell>{new Date(row.nextDueDate).toLocaleDateString()}</TableCell>
+                          <TableCell>{row.category}</TableCell>
+                          <TableCell><StatusChip label={status === "dueSoon" ? "Due Soon" : status.charAt(0).toUpperCase() + status.slice(1)} status={status} /></TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Edit" arrow>
+                              <span>
+                                <ActionButton icon={<EditIcon fontSize="small" />} onClick={() => handleEdit(row)} ariaLabel="Edit" />
+                              </span>
+                            </Tooltip>
+                            <Tooltip title="Delete" arrow>
+                              <span>
+                                <ActionButton icon={<DeleteIcon fontSize="small" />} onClick={() => handleDelete(row)} ariaLabel="Delete" />
+                              </span>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Box sx={{ p: 2, textAlign: 'center' }}>
+                <Link href="#" underline="hover" sx={{ fontWeight: 500 }}>
+                  View All Subscriptions &rarr;
+                </Link>
+              </Box>
+            </>
+          )}
+        </Paper>
+      </Box>
 
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
-            <FilterSidesheet
-              selectedCategories={selectedCategories}
-              selectedBillingCycles={selectedBillingCycles}
-              selectedFrequencies={selectedFrequencies}
-              amountRange={amountRange}
-              onCategoryChange={setSelectedCategories}
-              onBillingCycleChange={setSelectedBillingCycles}
-              onFrequencyChange={setSelectedFrequencies}
-              onAmountRangeChange={setAmountRange}
-              onApplyFilters={handleApplyFilters}
-            />
-            <div className="w-2.5"></div>
-            <button
-              onClick={handleOpenModal}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Subscription
-            </button>
-          </div>
-        </div>
+      {/* Add/Edit Subscription Modal */}
+      <Dialog open={modalOpen} onClose={handleModalClose} maxWidth="sm" fullWidth>
+        <DialogTitle>{editRow ? "Edit Subscription" : "Add Subscription"}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+          <TextField 
+            label="Name" 
+            value={form.name} 
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))} 
+            fullWidth 
+          />
+          <TextField 
+            label="Amount" 
+            type="number"
+            value={form.amount} 
+            onChange={e => setForm(f => ({ ...f, amount: parseFloat(e.target.value) || 0 }))} 
+            fullWidth 
+          />
+          <Select
+            value={form.billingCycle}
+            onChange={e => setForm(f => ({ ...f, billingCycle: e.target.value as any }))}
+            fullWidth
+            label="Billing Cycle"
+          >
+            <MenuItem value="monthly">Monthly</MenuItem>
+            <MenuItem value="yearly">Yearly</MenuItem>
+            <MenuItem value="twoYear">2 Year</MenuItem>
+            <MenuItem value="threeYear">3 Year</MenuItem>
+          </Select>
+          <Select
+            value={form.frequency}
+            onChange={e => setForm(f => ({ ...f, frequency: e.target.value as any }))}
+            fullWidth
+            label="Frequency"
+          >
+            <MenuItem value="recurring">Recurring</MenuItem>
+            <MenuItem value="oneTime">One Time</MenuItem>
+          </Select>
+          <TextField 
+            label="Next Due Date" 
+            type="date"
+            value={form.nextDueDate} 
+            onChange={e => setForm(f => ({ ...f, nextDueDate: e.target.value }))} 
+            fullWidth 
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField 
+            label="Category" 
+            value={form.category} 
+            onChange={e => setForm(f => ({ ...f, category: e.target.value }))} 
+            fullWidth 
+          />
+          <TextField 
+            label="Notes" 
+            value={form.notes || ""} 
+            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} 
+            fullWidth 
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleModalClose}>Cancel</Button>
+          <Button 
+            onClick={handleModalSave} 
+            variant="contained"
+            disabled={createSubscriptionMutation.isPending || updateSubscriptionMutation.isPending}
+          >
+            {createSubscriptionMutation.isPending || updateSubscriptionMutation.isPending ? "Saving..." : (editRow ? "Save" : "Add")}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        {/* Tab Content */}
-        <div>
-          {/* Main Content Area */}
-          <div>
-            {activeTab === "list" && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-[calc(100vh-280px)] flex flex-col">
-                <div className="flex items-center justify-between mb-6 flex-shrink-0">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Your Subscriptions & Bills
-                    {(selectedCategories.length > 0 || selectedBillingCycles.length > 0 || selectedFrequencies.length > 0 || amountRange.min || amountRange.max) && (
-                      <span className="text-sm font-normal text-gray-500 ml-2">
-                        (Filtered - {subscriptions.length} result{subscriptions.length === 1 ? '' : 's'})
-                      </span>
-                    )}
-                  </h2>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <SubscriptionList 
-                    subscriptions={subscriptions} 
-                    isLoading={isLoading}
-                    onAddSubscription={handleOpenModal}
-                    onEditSubscription={handleEditSubscription}
-                    onDeleteSubscription={handleDeleteSubscription}
-                  />
-                </div>
-              </div>
-            )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteRow} onClose={handleDeleteCancel} maxWidth="xs">
+        <DialogTitle>Delete Subscription</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete <b>{deleteRow?.name}</b>?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleteSubscriptionMutation.isPending}>Cancel</Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={deleteSubscriptionMutation.isPending}
+          >
+            {deleteSubscriptionMutation.isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-            {activeTab === "chart" && (
-              <div>
-                <MonthlySpendChart subscriptions={subscriptions} />
-              </div>
-            )}
+      {/* Snackbar/Toast */}
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <MuiAlert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
 
-            {activeTab === "calendar" && (
-              <div>
-                <UpcomingCalendar subscriptions={subscriptions} />
-              </div>
-            )}
-
-            {activeTab === "reports" && (
-              <div>
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Reports</h2>
-                  <p className="text-gray-600">Reports feature coming soon...</p>
-                </div>
-              </div>
-            )}
-
-
-          </div>
-        </div>
-      </main>
-
-      {/* Subscription Form Modal */}
-      <SubscriptionFormWrapper 
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        subscription={editingSubscription}
-        mode={modalMode}
-      />
-    </div>
+      {/* Footer */}
+      <Box sx={{ mt: 6, py: 3, textAlign: 'center', color: 'text.secondary', fontSize: 15, borderTop: '1px solid #ececec', background: '#fff' }}>
+        Made with <span style={{ color: '#2196f3', fontWeight: 700 }}>Yisily</span> &copy; {new Date().getFullYear()}
+      </Box>
+    </Box>
   );
 } 
