@@ -31,7 +31,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
+.env
+.env.local
 
+
+google-cloud-cli-456.0.0-darwin-arm.tar.gz
 # vercel
 .vercel
 
