@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { z } from "zod";
 import { getDatabase } from "@/lib/database";
-import { getAppSecrets } from "@/lib/secrets";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 const subscriptionSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
@@ -22,17 +22,10 @@ const sanitizeError = (error: any) => {
   return error.message || "Internal server error";
 };
 
-// Create auth options for getServerSession
-const createAuthOptions = async () => {
-  const secrets = await getAppSecrets();
-  return {
-    secret: secrets.nextAuthSecret,
-  };
-};
+
 
 export async function GET(request: NextRequest) {
   try {
-    const authOptions = await createAuthOptions();
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
@@ -122,8 +115,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authOptions = await createAuthOptions();
     const session = await getServerSession(authOptions);
+
     
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
