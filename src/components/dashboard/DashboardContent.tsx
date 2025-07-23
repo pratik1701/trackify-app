@@ -2,43 +2,8 @@
 
 import React, { useState } from "react";
 import Box from "@mui/material/Box";
-import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import InputBase from "@mui/material/InputBase";
-import Paper from "@mui/material/Paper";
-import Avatar from "@mui/material/Avatar";
-import IconButton from "@mui/material/IconButton";
-import SearchIcon from "@mui/icons-material/Search";
-import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import LogoutIcon from "@mui/icons-material/Logout";
-import { StatCard } from "../common/StatCard";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import SubscriptionsIcon from "@mui/icons-material/Subscriptions";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
 import Button from "@mui/material/Button";
-import AddIcon from "@mui/icons-material/Add";
-import Select from "@mui/material/Select";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Link from "@mui/material/Link";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import { StatusChip } from "../common/StatusChip";
-import { ActionButton } from "../common/ActionButton";
-import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -46,64 +11,21 @@ import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 import { useCreateSubscription, useUpdateSubscription, useDeleteSubscription, useCategories, type Subscription, type CreateSubscriptionData } from "@/hooks/useSubscriptions";
 import { signOut } from "next-auth/react";
 import Autocomplete from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
+import { Header } from "./components/Header";
+import { StatCardContainer } from "./components/StatCardContainer";
+import { TabsAndAddButtonRow } from "./components/TabsAndAddButtonRow";
+import { TableControlsRow } from "./components/TableControlsRow";
+import { SubscriptionTable } from "./components/SubscriptionTable";
 
-const stats = [
-  {
-    icon: <AttachMoneyIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-    iconBg: '#e9f3ff',
-    label: "Total Monthly Spend",
-    value: "$396.44",
-    sublabel: { percent: "+3.2%", color: "#22c55e", text: "Estimated recurring spend", up: true },
-  },
-  {
-    icon: <CalendarMonthIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-    iconBg: '#e9f3ff',
-    label: "Upcoming Bills (7 Days)",
-    value: 0,
-    sublabel: { text: "Bills due in the next week", color: '#64748b' },
-  },
-  {
-    icon: <SubscriptionsIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-    iconBg: '#e9f3ff',
-    label: "Active Subscriptions",
-    value: 11,
-    sublabel: { percent: "-1.5%", color: "#ef4444", text: "Currently active services", up: false },
-  },
-  {
-    icon: <ReceiptLongIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-    iconBg: '#e9f3ff',
-    label: "Avg. Bill Amount",
-    value: "$36.04",
-    sublabel: { percent: "+0.8%", color: "#22c55e", text: "Average cost per subscription", up: true },
-  },
-];
 
-// Helper function to get status based on due date
-const getSubscriptionStatus = (dueDate: string): 'active' | 'dueSoon' | 'overdue' => {
-  const today = new Date();
-  const due = new Date(dueDate);
-  const diffTime = due.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays < 0) return 'overdue';
-  if (diffDays <= 7) return 'dueSoon';
-  return 'active';
-};
 
-// Helper function to format billing cycle for display
-const formatBillingCycle = (cycle: string): string => {
-  switch (cycle) {
-    case 'monthly': return 'Monthly';
-    case 'yearly': return 'Yearly';
-    case 'twoYear': return '2 Year';
-    case 'threeYear': return '3 Year';
-    default: return cycle;
-  }
-};
+
 
 interface DashboardContentProps {
   subscriptions: Subscription[];
@@ -248,231 +170,31 @@ export function DashboardContent({
     handleProfileMenuClose();
   };
 
-  // Calculate stats from props
-  const upcomingBillsCount = subscriptions.filter(sub => {
-    const dueDate = new Date(sub.nextDueDate);
-    const today = new Date();
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 7;
-  }).length;
 
-  const avgBillAmount = subscriptions.length > 0 
-    ? subscriptions.reduce((sum, sub) => sum + sub.amount, 0) / subscriptions.length 
-    : 0;
 
-  const dynamicStats = [
-    {
-      icon: <AttachMoneyIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-      iconBg: '#e9f3ff',
-      label: "Total Monthly Spend",
-      value: `$${totalMonthlySpend.toFixed(2)}`,
-      sublabel: { text: "Estimated recurring spend", color: '#64748b' },
-    },
-    {
-      icon: <CalendarMonthIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-      iconBg: '#e9f3ff',
-      label: "Upcoming Bills (7 Days)",
-      value: upcomingBillsCount,
-      sublabel: { text: "Bills due in the next week", color: '#64748b' },
-    },
-    {
-      icon: <SubscriptionsIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-      iconBg: '#e9f3ff',
-      label: "Active Subscriptions",
-      value: subscriptions.length,
-      sublabel: { text: "Currently active services", color: '#64748b' },
-    },
-    {
-      icon: <ReceiptLongIcon sx={{ color: '#2196f3', fontSize: 28 }} />,
-      iconBg: '#e9f3ff',
-      label: "Avg. Bill Amount",
-      value: `$${avgBillAmount.toFixed(2)}`,
-      sublabel: { text: "Average cost per subscription", color: '#64748b' },
-    },
-  ];
-
-  // Header
   return (
     <Box sx={{ background: '#fff', minHeight: '100vh' }}>
-      {/* Header */}
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        px: 4,
-        py: 2.5,
-        borderBottom: '1px solid #ececec',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-        background: '#fff',
-      }}>
-        {/* Logo */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box sx={{ width: 32, height: 32, bgcolor: '#e9f3ff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1 }}>
-            <AttachMoneyIcon sx={{ color: '#2196f3', fontSize: 22 }} />
-          </Box>
-          <Typography variant="h6" fontWeight={700} color="#18181B">Trackify</Typography>
-        </Box>
-        {/* Icons and Avatar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton><NotificationsNoneIcon /></IconButton>
-          <Avatar 
-            sx={{ 
-              width: 36, 
-              height: 36, 
-              bgcolor: '#e9f3ff', 
-              color: '#2196f3', 
-              fontWeight: 700, 
-              fontSize: 18,
-              cursor: 'pointer',
-              '&:hover': {
-                bgcolor: '#d1e7ff',
-              }
-            }}
-            onClick={handleProfileMenuOpen}
-          >
-            {userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-          </Avatar>
-        </Box>
-      </Box>
+      <Header 
+        userName={userName}
+        profileMenuAnchor={profileMenuAnchor}
+        onProfileMenuOpen={handleProfileMenuOpen}
+        onProfileMenuClose={handleProfileMenuClose}
+        onLogout={handleLogout}
+      />
+      <StatCardContainer 
+        subscriptions={subscriptions}
+        totalMonthlySpend={totalMonthlySpend}
+      />
 
-      <Box sx={{ display: 'flex', gap: 1, px: 4, mb: 3, flexWrap: 'wrap', pt: 4, justifyContent:'space-between', flexDirection: { xs: 'column', sm: 'row' } }}>
-        {dynamicStats.map((stat, idx) => (
-          <StatCard
-            key={stat.label}
-            icon={stat.icon}
-            iconBg={stat.iconBg}
-            label={stat.label}
-            value={stat.value}
-            sublabel={stat.sublabel}
-            sx={{ borderRadius: 5, width: { xs: 'auto', sm: 250, md: 250 }, maxWidth: 400}}
-          />
-        ))}
-      </Box>
+      <TabsAndAddButtonRow onAddSubscription={handleAdd} />
 
-      {/* Tabs and Add Button Row */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 4, mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 0 } }}>
-        <Tabs value={0} sx={{ minHeight: 0 }}>
-          <Tab label="Subscription List" sx={{ textTransform: 'none', fontWeight: 500, minHeight: 0 }} />
-          <Tab label="Subscription Overview" sx={{ textTransform: 'none', fontWeight: 500, minHeight: 0 }} />
-          <Tab label="Subscription Calendar" sx={{ textTransform: 'none', fontWeight: 500, minHeight: 0 }} />
-        </Tabs>
-        <Button variant="contained" startIcon={<AddIcon />} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }} onClick={handleAdd}>
-          Add Subscription
-        </Button>
-      </Box>
+      <TableControlsRow />
 
-      {/* Table Controls Row */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 4, mb: 1, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 0 } }}>
-        {/* Search Bar */}
-        <Paper
-          component="form"
-          sx={{ display: 'flex', alignItems: 'center', width: 260, boxShadow: 'none', border: '1px solid #ececec', borderRadius: 2, px: 1 }}
-        >
-          <InputBase
-            sx={{ ml: 1, flex: 1, fontSize: 15 }}
-            placeholder="Search subscriptions..."
-            inputProps={{ 'aria-label': 'search subscriptions' }}
-          />
-          <IconButton type="submit" sx={{ p: '6px' }} aria-label="search">
-            <SearchIcon />
-          </IconButton>
-        </Paper>
-        {/* Type and Cycle Dropdowns */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Select
-            value={""}
-            displayEmpty
-            size="small"
-            sx={{ minWidth: 100, borderRadius: 2, background: '#fff', fontWeight: 500 }}
-          >
-            <MenuItem value="">Type</MenuItem>
-            <MenuItem value="recurring">Recurring</MenuItem>
-            <MenuItem value="oneTime">One Time</MenuItem>
-          </Select>
-          <Select
-            value={""}
-            displayEmpty
-            size="small"
-            sx={{ minWidth: 100, borderRadius: 2, background: '#fff', fontWeight: 500 }}
-          >
-            <MenuItem value="">Cycle</MenuItem>
-            <MenuItem value="monthly">Monthly</MenuItem>
-            <MenuItem value="yearly">Yearly</MenuItem>
-          </Select>
-        </Box>
-      </Box>
-
-      {/* Table */}
-      <Box sx={{ px: 4, pb: 2 }}>
-        <Paper elevation={1} sx={{ borderRadius: 3 }}>
-          {subscriptions.length === 0 ? (
-            <Box sx={{ p: 6, textAlign: 'center', color: 'text.secondary' }}>
-              <Box sx={{ mb: 2 }}>
-                {/* Placeholder illustration (could use an SVG or MUI icon) */}
-                <svg width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect width="80" height="80" rx="16" fill="#f6f7fa" />
-                  <path d="M24 40h32M24 48h32M24 32h32" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </Box>
-              <Typography variant="h6" sx={{ mb: 1 }}>No subscriptions found</Typography>
-              <Typography variant="body2">Get started by adding your first subscription.</Typography>
-            </Box>
-          ) : (
-            <>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Cycle</TableCell>
-                      <TableCell>Next Due Date</TableCell>
-                      <TableCell>Category</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell align="right">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {subscriptions.map((row) => {
-                      const status = getSubscriptionStatus(row.nextDueDate);
-                      return (
-                        <TableRow key={row.id} sx={{ transition: 'background 0.2s', '&:hover': { background: '#f6f7fa' } }}>
-                          <TableCell>{row.name}</TableCell>
-                          <TableCell>${row.amount.toFixed(2)}</TableCell>
-                          <TableCell>{formatBillingCycle(row.billingCycle)}</TableCell>
-                          <TableCell>{new Date(row.nextDueDate).toLocaleDateString()}</TableCell>
-                          <TableCell>{row.category}</TableCell>
-                          <TableCell><StatusChip label={status === "dueSoon" ? "Due Soon" : status.charAt(0).toUpperCase() + status.slice(1)} status={status} /></TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Edit" arrow>
-                              <span>
-                                <ActionButton icon={<EditIcon fontSize="small" />} onClick={() => handleEdit(row)} ariaLabel="Edit" />
-                              </span>
-                            </Tooltip>
-                            <Tooltip title="Delete" arrow>
-                              <span>
-                                <ActionButton icon={<DeleteIcon fontSize="small" />} onClick={() => handleDelete(row)} ariaLabel="Delete" />
-                              </span>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              <Box sx={{ p: 2, textAlign: 'center' }}>
-                <Link href="#" underline="hover" sx={{ fontWeight: 500 }}>
-                  View All Subscriptions &rarr;
-                </Link>
-              </Box>
-            </>
-          )}
-        </Paper>
-      </Box>
+      <SubscriptionTable 
+        subscriptions={subscriptions}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
       {/* Add/Edit Subscription Modal */}
       <Dialog open={modalOpen} onClose={handleModalClose} maxWidth="sm" fullWidth>
@@ -595,52 +317,6 @@ export function DashboardContent({
         </MuiAlert>
       </Snackbar>
 
-      {/* Profile Menu */}
-      <Menu
-        anchorEl={profileMenuAnchor}
-        open={Boolean(profileMenuAnchor)}
-        onClose={handleProfileMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-        PaperProps={{
-          sx: {
-            mt: 1,
-            minWidth: 180,
-            boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.15)',
-            borderRadius: 2,
-          }
-        }}
-      >
-        <MenuItem onClick={handleProfileMenuClose}>
-          <ListItemIcon>
-            <SettingsOutlinedIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Settings</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleProfileMenuClose}>
-          <ListItemIcon>
-            <HelpOutlineIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Help</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Logout</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      {/* Footer */}
-      <Box sx={{ mt: 6, py: 3, textAlign: 'center', color: 'text.secondary', fontSize: 15, borderTop: '1px solid #ececec', background: '#fff' }}>
-        Made with <span style={{ color: '#2196f3', fontWeight: 700 }}>Yisily</span> &copy; {new Date().getFullYear()}
-      </Box>
     </Box>
   );
 } 
