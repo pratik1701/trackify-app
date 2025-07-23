@@ -11,12 +11,21 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID || 'trackify-464805';
 
 /**
- * Get a secret from Google Secret Manager
+ * Get a secret from Google Secret Manager or environment variables
  * @param secretName - The name of the secret (e.g., 'google-client-id')
  * @param version - The version of the secret (default: 'latest')
  * @returns The secret value
  */
 export async function getSecret(secretName: string, version: string = 'latest'): Promise<string> {
+  // In development, use environment variables directly
+  if (process.env.NODE_ENV === 'development') {
+    const envValue = process.env[secretName];
+    if (envValue) {
+      return envValue;
+    }
+    throw new Error(`Environment variable ${secretName} not found`);
+  }
+
   try {
     // Check cache first
     const cacheKey = `${secretName}-${version}`;

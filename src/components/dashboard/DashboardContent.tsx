@@ -46,8 +46,10 @@ import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
-import { useCreateSubscription, useUpdateSubscription, useDeleteSubscription, type Subscription, type CreateSubscriptionData } from "@/hooks/useSubscriptions";
+import { useCreateSubscription, useUpdateSubscription, useDeleteSubscription, useCategories, type Subscription, type CreateSubscriptionData } from "@/hooks/useSubscriptions";
 import { signOut } from "next-auth/react";
+import Autocomplete from "@mui/material/Autocomplete";
+import CircularProgress from "@mui/material/CircularProgress";
 
 const stats = [
   {
@@ -122,6 +124,7 @@ export function DashboardContent({
   const createSubscriptionMutation = useCreateSubscription();
   const updateSubscriptionMutation = useUpdateSubscription();
   const deleteSubscriptionMutation = useDeleteSubscription();
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
 
   // Modal/dialog/snackbar state
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -516,11 +519,34 @@ export function DashboardContent({
             fullWidth 
             InputLabelProps={{ shrink: true }}
           />
-          <TextField 
-            label="Category" 
-            value={form.category} 
-            onChange={e => setForm(f => ({ ...f, category: e.target.value }))} 
-            fullWidth 
+          <Autocomplete
+            options={categories}
+            value={form.category}
+            onChange={(event, newValue) => {
+              setForm(f => ({ ...f, category: newValue || "" }));
+            }}
+            onInputChange={(event, newInputValue) => {
+              setForm(f => ({ ...f, category: newInputValue }));
+            }}
+            freeSolo
+            loading={categoriesLoading}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Category"
+                placeholder="Select or type a category"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {categoriesLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            fullWidth
           />
           <TextField 
             label="Notes" 

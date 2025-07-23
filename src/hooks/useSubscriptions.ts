@@ -40,6 +40,17 @@ const fetchSubscriptions = async (): Promise<Subscription[]> => {
   return response.json();
 };
 
+const fetchCategories = async (): Promise<string[]> => {
+  const response = await fetch('/api/categories');
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch categories');
+  }
+
+  return response.json();
+};
+
 const createSubscription = async (data: CreateSubscriptionData): Promise<Subscription> => {
   const response = await fetch('/api/subscriptions', {
     method: 'POST',
@@ -93,6 +104,14 @@ export const useSubscriptions = () => {
     queryKey: ['subscriptions'],
     queryFn: fetchSubscriptions,
     staleTime: 60 * 1000, // 1 minute
+  });
+};
+
+export const useCategories = () => {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 
