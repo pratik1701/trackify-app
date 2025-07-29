@@ -12,22 +12,47 @@ import ListItemText from "@mui/material/ListItemText";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
+import { signOut } from "next-auth/react";
 
 interface HeaderProps {
   userName: string;
   profileMenuAnchor: HTMLElement | null;
   onProfileMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
   onProfileMenuClose: () => void;
-  onLogout: () => void;
 }
 
 export function Header({ 
   userName, 
   profileMenuAnchor, 
   onProfileMenuOpen, 
-  onProfileMenuClose, 
-  onLogout 
+  onProfileMenuClose 
 }: HeaderProps) {
+  const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: "success" | "error" }>({ 
+    open: false, 
+    message: "", 
+    severity: "success" 
+  });
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ 
+        callbackUrl: '/' // Redirect to home page after logout
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Show error message to user
+      setSnackbar({ 
+        open: true, 
+        message: "Failed to logout. Please try again.", 
+        severity: "error" 
+      });
+    }
+    onProfileMenuClose();
+  };
+
+  const handleSnackbarClose = () => setSnackbar(s => ({ ...s, open: false }));
   return (
     <>
       {/* Header */}
@@ -107,13 +132,20 @@ export function Header({
           </ListItemIcon>
           <ListItemText>Help</ListItemText>
         </MenuItem>
-        <MenuItem onClick={onLogout}>
+        <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Logout</ListItemText>
         </MenuItem>
       </Menu>
+
+      {/* Snackbar for error messages */}
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <MuiAlert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </>
   );
 } 

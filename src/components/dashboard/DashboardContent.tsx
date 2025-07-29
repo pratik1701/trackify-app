@@ -14,7 +14,6 @@ import MuiAlert from "@mui/material/Alert";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { useCreateSubscription, useUpdateSubscription, useDeleteSubscription, useCategories, type Subscription, type CreateSubscriptionData } from "@/hooks/useSubscriptions";
-import { signOut } from "next-auth/react";
 import Autocomplete from "@mui/material/Autocomplete";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Header } from "./components/Header";
@@ -153,22 +152,7 @@ export function DashboardContent({
     setProfileMenuAnchor(null);
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut({ 
-        callbackUrl: '/' // Redirect to home page after logout
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Show error message to user
-      setSnackbar({ 
-        open: true, 
-        message: "Failed to logout. Please try again.", 
-        severity: "error" 
-      });
-    }
-    handleProfileMenuClose();
-  };
+
 
 
 
@@ -179,7 +163,6 @@ export function DashboardContent({
         profileMenuAnchor={profileMenuAnchor}
         onProfileMenuOpen={handleProfileMenuOpen}
         onProfileMenuClose={handleProfileMenuClose}
-        onLogout={handleLogout}
       />
       <StatCardContainer 
         subscriptions={subscriptions}
